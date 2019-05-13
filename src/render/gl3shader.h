@@ -147,9 +147,9 @@ public:
     struct Handle {
         GLuint      vertexBuffer;
         GLuint      indexBuffer;
-        GLsizei     size;
     };
 
+    Handle              handle;
     Shader              shader;
 
     const StippleAtlas *atlas   = NULL;
@@ -158,14 +158,18 @@ public:
     void Init(const StippleAtlas *atlas);
     void Clear();
 
-    Handle Add(const SEdgeList &edges, bool dynamic = false);
-    void Remove(const Handle &handle);
-    void Draw(const Handle &handle);
+    void SetEdgeCount(uint32_t edgeCount);
     void Draw(const SEdgeList &edges);
 
     void SetModelview(double *matrix);
     void SetProjection(double *matrix);
     void SetStroke(const Canvas::Stroke &stroke, double pixel);
+    
+private:
+    void Add(const SEdgeList &edges);
+
+    uint32_t verticesIndex;
+    uint32_t indicesIndex;
 };
 
 class OutlineRenderer {
@@ -187,9 +191,9 @@ public:
     struct Handle {
         GLuint      vertexBuffer;
         GLuint      indexBuffer;
-        GLsizei     size;
     };
 
+    Handle              handle;
     Shader              shader;
 
     const StippleAtlas *atlas   = NULL;
@@ -198,14 +202,18 @@ public:
     void Init(const StippleAtlas *atlas);
     void Clear();
 
-    Handle Add(const SOutlineList &outlines, bool dynamic = false);
-    void Remove(const Handle &handle);
-    void Draw(const Handle &handle, Canvas::DrawOutlinesAs mode);
+    void SetOutlineCount(uint32_t outlineCount);
     void Draw(const SOutlineList &outlines, Canvas::DrawOutlinesAs mode);
 
     void SetModelview(double *matrix);
     void SetProjection(double *matrix);
     void SetStroke(const Canvas::Stroke &stroke, double pixel);
+    
+private:
+    void Add(const SOutlineList &outlines);
+
+    uint32_t verticesIndex;
+    uint32_t indicesIndex;
 };
 
 class SIndexedMesh {
@@ -234,9 +242,9 @@ public:
     struct Handle {
         GLuint      vertexBuffer;
         GLuint      indexBuffer;
-        GLsizei     size;
     };
-
+    
+    Handle handle;
     Shader  texShader;
     Shader  texaShader;
     Shader  colShader;
@@ -247,9 +255,7 @@ public:
     void Init();
     void Clear();
 
-    Handle Add(const SIndexedMesh &m, bool dynamic = false);
-    void Remove(const Handle &handle);
-    void Draw(const Handle &handle);
+    void SetCounts(uint32_t vertices, uint32_t indices);
     void Draw(const SIndexedMesh &mesh);
 
     void SetModelview(double *matrix);
@@ -259,6 +265,11 @@ public:
 
     void UseFilled(const Canvas::Fill &fill);
     void UsePoint(const Canvas::Stroke &stroke, double pixel);
+private:
+    uint32_t verticesIndex;
+    uint32_t indicesIndex;
+    
+    void Add(const SIndexedMesh &m);
 };
 
 }

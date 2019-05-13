@@ -638,6 +638,20 @@ void OpenGl3Renderer::NewFrame() {
 }
 
 void OpenGl3Renderer::FlushFrame() {
+    size_t indexCount = 0;
+    size_t vertexCount = 0;
+    for(SMeshListItem &li : meshes) {
+        indexCount += li.mesh.indices.size();
+        vertexCount += li.mesh.vertices.size();
+    }
+
+    for(SPointListItem &li : points) {
+        indexCount += li.points.indices.size();
+        vertexCount += li.points.vertices.size();
+    }
+
+    imeshRenderer.SetCounts(vertexCount, indexCount);
+
     for(SMeshListItem &li : meshes) {
         Fill *fill = SelectFill(li.h);
 
@@ -647,6 +661,12 @@ void OpenGl3Renderer::FlushFrame() {
     }
     meshes.Clear();
 
+    size_t edgeCount = 0;
+    for(SEdgeListItem &eli : lines) {
+        edgeCount += eli.lines.l.n;
+    }
+    edgeRenderer.SetEdgeCount(edgeCount);
+    
     for(SEdgeListItem &eli : lines) {
         Stroke *stroke = SelectStroke(eli.h);
 
@@ -730,18 +750,18 @@ public:
                                             Canvas::Stroke *stroke) {
         EdgeDrawCall *dc = new EdgeDrawCall();
         dc->stroke = *stroke;
-        dc->handle = renderer->edgeRenderer.Add(el);
+//        dc->handle = renderer->edgeRenderer.Add(el);
         return std::shared_ptr<DrawCall>(dc);
     }
 
     void Draw(OpenGl3Renderer *renderer) override {
         ssglDepthRange(stroke.layer, stroke.zIndex);
         renderer->edgeRenderer.SetStroke(stroke, 1.0 / renderer->camera.scale);
-        renderer->edgeRenderer.Draw(handle);
+//        renderer->edgeRenderer.Draw(handle);
     }
 
     void Remove(OpenGl3Renderer *renderer) override {
-        renderer->edgeRenderer.Remove(handle);
+//        renderer->edgeRenderer.Remove(handle);
     }
 };
 
@@ -761,7 +781,7 @@ public:
                                             Canvas::DrawOutlinesAs drawAs) {
         OutlineDrawCall *dc = new OutlineDrawCall();
         dc->stroke = *stroke;
-        dc->handle = renderer->outlineRenderer.Add(ol);
+//        dc->handle = renderer->outlineRenderer.Add(ol);
         dc->drawAs = drawAs;
         return std::shared_ptr<DrawCall>(dc);
     }
@@ -769,11 +789,11 @@ public:
     void Draw(OpenGl3Renderer *renderer) override {
         ssglDepthRange(stroke.layer, stroke.zIndex);
         renderer->outlineRenderer.SetStroke(stroke, 1.0 / renderer->camera.scale);
-        renderer->outlineRenderer.Draw(handle, drawAs);
+//        renderer->outlineRenderer.Draw(handle, drawAs);
     }
 
     void Remove(OpenGl3Renderer *renderer) override {
-        renderer->outlineRenderer.Remove(handle);
+//        renderer->outlineRenderer.Remove(handle);
     }
 };
 
@@ -791,18 +811,18 @@ public:
                                             Canvas::Stroke *stroke) {
         PointDrawCall *dc = new PointDrawCall();
         dc->stroke = *stroke;
-        dc->handle = renderer->imeshRenderer.Add(mesh);
+//        dc->handle = renderer->imeshRenderer.Add(mesh);
         return std::shared_ptr<DrawCall>(dc);
     }
 
     void Draw(OpenGl3Renderer *renderer) override {
         ssglDepthRange(stroke.layer, stroke.zIndex);
         renderer->imeshRenderer.UsePoint(stroke, 1.0 / renderer->camera.scale);
-        renderer->imeshRenderer.Draw(handle);
+//        renderer->imeshRenderer.Draw(handle);
     }
 
     void Remove(OpenGl3Renderer *renderer) override {
-        renderer->imeshRenderer.Remove(handle);
+//        renderer->imeshRenderer.Remove(handle);
     }
 };
 
@@ -820,7 +840,7 @@ public:
                                             Canvas::Fill *fill) {
         PixmapDrawCall *dc = new PixmapDrawCall();
         dc->fill   = *fill;
-        dc->handle = renderer->imeshRenderer.Add(mesh);
+//        dc->handle = renderer->imeshRenderer.Add(mesh);
         return std::shared_ptr<DrawCall>(dc);
     }
 
@@ -834,11 +854,11 @@ public:
             renderer->SelectMask(Canvas::FillPattern::SOLID);
         }
         renderer->imeshRenderer.UseFilled(fill);
-        renderer->imeshRenderer.Draw(handle);
+//        renderer->imeshRenderer.Draw(handle);
     }
 
     void Remove(OpenGl3Renderer *renderer) override {
-        renderer->imeshRenderer.Remove(handle);
+//        renderer->imeshRenderer.Remove(handle);
     }
 };
 
@@ -980,7 +1000,7 @@ public:
     }
 
     void DrawOutlines(const SOutlineList &ol, hStroke hcs, DrawOutlinesAs drawAs) override {
-        drawCalls.emplace(OutlineDrawCall::Create(renderer, ol, strokes.FindById(hcs), drawAs));
+//        drawCalls.emplace(OutlineDrawCall::Create(renderer, ol, strokes.FindById(hcs), drawAs));
     }
 
     void DrawVectorText(const std::string &text, double height,
@@ -1042,14 +1062,14 @@ public:
     }
 
     void Finalize() override {
-        for(const EdgeBuffer &eb : edgeBuffer) {
-            drawCalls.emplace(EdgeDrawCall::Create(renderer, eb.edges, strokes.FindById(eb.h)));
-        }
+//        for(const EdgeBuffer &eb : edgeBuffer) {
+//            drawCalls.emplace(EdgeDrawCall::Create(renderer, eb.edges, strokes.FindById(eb.h)));
+//        }
         edgeBuffer.Clear();
 
-        for(const PointBuffer &pb : pointBuffer) {
-            drawCalls.emplace(PointDrawCall::Create(renderer, pb.points, strokes.FindById(pb.h)));
-        }
+//        for(const PointBuffer &pb : pointBuffer) {
+//            drawCalls.emplace(PointDrawCall::Create(renderer, pb.points, strokes.FindById(pb.h)));
+//        }
         pointBuffer.Clear();
     }
 

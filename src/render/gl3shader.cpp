@@ -458,20 +458,28 @@ void EdgeRenderer::Init(const StippleAtlas *a) {
             { ATTRIB_TAN, "tgt" }
         }
     );
+    
+    glGenBuffers(1, &handle.vertexBuffer);
+    glGenBuffers(1, &handle.indexBuffer);
+    
 }
 
 void EdgeRenderer::Clear() {
     shader.Clear();
 }
-
-EdgeRenderer::Handle EdgeRenderer::Add(const SEdgeList &edges, bool dynamic) {
-    Handle handle;
-    glGenBuffers(1, &handle.vertexBuffer);
-    glGenBuffers(1, &handle.indexBuffer);
-
+    
+void EdgeRenderer::SetEdgeCount(uint32_t edgeCount) {
+    verticesIndex = 0;
+    indicesIndex = 0;
+    
+    // 8 vertices per edge, and 18 indices per edge.
     glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, edgeCount * 8 * sizeof(EdgeVertex), nullptr, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, edgeCount * 6 * 3 * sizeof(uint32_t), nullptr, GL_DYNAMIC_DRAW);
+}
 
+void EdgeRenderer::Add(const SEdgeList &edges) {
     EdgeVertex *vertices = new EdgeVertex[edges.l.n * 8];
     uint32_t *indices = new uint32_t[edges.l.n * 6 * 3];
     double phase = 0.0;
@@ -484,6 +492,8 @@ EdgeRenderer::Handle EdgeRenderer::Add(const SEdgeList &edges, bool dynamic) {
         // 3d positions
         Vector3f a = Vector3f::From(curr.a);
         Vector3f b = Vector3f::From(curr.b);
+        
+        printf("Drawing edge between (%.2f, %.2f, %.2f) and (%.2f, %.2f, %.2f)\n", a.x, a.y, a.z, b.x, b.y, b.z);
 
         // tangent
         Vector3f tan = Vector3f::From(curr.b.Minus(curr.a));
@@ -561,24 +571,28 @@ EdgeRenderer::Handle EdgeRenderer::Add(const SEdgeList &edges, bool dynamic) {
             phase = 0.0;
         }
     }
-    handle.size = curIndex;
-    GLenum mode = dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
-    glBufferData(GL_ARRAY_BUFFER, curVertex * sizeof(EdgeVertex), vertices, mode);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, curIndex * sizeof(uint32_t), indices, mode);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
+    
+    glBufferSubData(GL_ARRAY_BUFFER, verticesIndex * sizeof(EdgeVertex), curVertex * sizeof(EdgeVertex), vertices);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesIndex * sizeof(uint32_t), curIndex * sizeof(uint32_t), indices);
+
+    verticesIndex += curVertex;
+    indicesIndex += curIndex;
+    
     delete []vertices;
     delete []indices;
-
-    return handle;
 }
 
-void EdgeRenderer::Remove(const EdgeRenderer::Handle &handle) {
-    glDeleteBuffers(1, &handle.vertexBuffer);
-    glDeleteBuffers(1, &handle.indexBuffer);
-}
-
-void EdgeRenderer::Draw(const EdgeRenderer::Handle &handle) {
-    if(handle.size == 0) return;
-
+void EdgeRenderer::Draw(const SEdgeList &edges) {
+    if (edges.l.n == 0) return;
+    
+    uint32_t baseIndex = verticesIndex;
+    uint32_t baseVertex = indicesIndex;
+    this->Add(edges);
+    uint32_t edgeCount = edges.l.n;
+    
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, atlas->GetTexture(pattern));
     shader.SetUniformTextureUnit("pattern", 1);
@@ -596,7 +610,7 @@ void EdgeRenderer::Draw(const EdgeRenderer::Handle &handle) {
     glVertexAttribPointer(ATTRIB_POS, 3, GL_FLOAT, GL_FALSE, sizeof(EdgeVertex), (void *)offsetof(EdgeVertex, pos));
     glVertexAttribPointer(ATTRIB_LOC, 3, GL_FLOAT, GL_FALSE, sizeof(EdgeVertex), (void *)offsetof(EdgeVertex, loc));
     glVertexAttribPointer(ATTRIB_TAN, 3, GL_FLOAT, GL_FALSE, sizeof(EdgeVertex), (void *)offsetof(EdgeVertex, tan));
-    glDrawElements(GL_TRIANGLES, handle.size, GL_UNSIGNED_INT, NULL);
+    glDrawElementsBaseVertex(GL_TRIANGLES, 6 * 3 * edgeCount, GL_UNSIGNED_INT, (GLvoid*)(baseIndex * sizeof(uint32_t)), baseVertex);
 
     glDisableVertexAttribArray(ATTRIB_POS);
     glDisableVertexAttribArray(ATTRIB_LOC);
@@ -606,12 +620,6 @@ void EdgeRenderer::Draw(const EdgeRenderer::Handle &handle) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     shader.Disable();
-}
-
-void EdgeRenderer::Draw(const SEdgeList &edges) {
-    Handle handle = Add(edges, /*dynamic=*/true);
-    Draw(handle);
-    Remove(handle);
 }
 
 void EdgeRenderer::SetModelview(double *matrix) {
@@ -647,19 +655,29 @@ void OutlineRenderer::Init(const StippleAtlas *a) {
             { ATTRIB_NOR, "nor" }
         }
     );
+    
+    glGenBuffers(1, &handle.vertexBuffer);
+    glGenBuffers(1, &handle.indexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
 }
 
 void OutlineRenderer::Clear() {
     shader.Clear();
 }
-
-OutlineRenderer::Handle OutlineRenderer::Add(const SOutlineList &outlines, bool dynamic) {
-    Handle handle;
-    glGenBuffers(1, &handle.vertexBuffer);
-    glGenBuffers(1, &handle.indexBuffer);
+    
+void OutlineRenderer::SetOutlineCount(uint32_t outlineCount) {
+    verticesIndex = 0;
+    indicesIndex = 0;
+    
+    // 8 vertices per edge, and 18 indices per edge.
     glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, outlineCount * 8 * sizeof(OutlineVertex), nullptr, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, outlineCount * 6 * 3 * sizeof(uint32_t), nullptr, GL_DYNAMIC_DRAW);
+}
 
+void OutlineRenderer::Add(const SOutlineList &outlines) {
     OutlineVertex *vertices = new OutlineVertex[outlines.l.n * 8];
     uint32_t *indices = new uint32_t[outlines.l.n * 6 * 3];
     double phase = 0.0;
@@ -762,23 +780,26 @@ OutlineRenderer::Handle OutlineRenderer::Add(const SOutlineList &outlines, bool 
             phase = 0.0;
         }
     }
-    handle.size = curIndex;
-    GLenum mode = dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
-    glBufferData(GL_ARRAY_BUFFER, curVertex * sizeof(OutlineVertex), vertices, mode);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, curIndex * sizeof(uint32_t), indices, mode);
-
+    glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
+    
+    glBufferSubData(GL_ARRAY_BUFFER, verticesIndex * sizeof(OutlineVertex), curVertex * sizeof(OutlineVertex), vertices);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesIndex * sizeof(uint32_t), curIndex * sizeof(uint32_t), indices);
+    
+    verticesIndex += curVertex;
+    indicesIndex += curIndex;
+    
     delete []vertices;
     delete []indices;
-    return handle;
 }
 
-void OutlineRenderer::Remove(const OutlineRenderer::Handle &handle) {
-    glDeleteBuffers(1, &handle.vertexBuffer);
-    glDeleteBuffers(1, &handle.indexBuffer);
-}
-
-void OutlineRenderer::Draw(const OutlineRenderer::Handle &handle, Canvas::DrawOutlinesAs mode) {
-    if(handle.size == 0) return;
+void OutlineRenderer::Draw(const SOutlineList &outlines, Canvas::DrawOutlinesAs mode) {
+    if (outlines.l.n == 0) return;
+    
+    uint32_t baseIndex = indicesIndex;
+    uint32_t baseVertex = verticesIndex;
+    this->Add(outlines);
+    uint32_t outlineCount = outlines.l.n;
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, atlas->GetTexture(pattern));
@@ -807,7 +828,7 @@ void OutlineRenderer::Draw(const OutlineRenderer::Handle &handle, Canvas::DrawOu
                           (void *)offsetof(OutlineVertex, nol));
     glVertexAttribPointer(ATTRIB_NOR, 3, GL_FLOAT, GL_FALSE, sizeof(OutlineVertex),
                           (void *)offsetof(OutlineVertex, nor));
-    glDrawElements(GL_TRIANGLES, handle.size, GL_UNSIGNED_INT, NULL);
+    glDrawElementsBaseVertex(GL_TRIANGLES, 6 * 3 * outlineCount, GL_UNSIGNED_INT, (GLvoid*)(baseIndex * sizeof(uint32_t)), baseVertex);
 
     glDisableVertexAttribArray(ATTRIB_POS);
     glDisableVertexAttribArray(ATTRIB_LOC);
@@ -818,12 +839,6 @@ void OutlineRenderer::Draw(const OutlineRenderer::Handle &handle, Canvas::DrawOu
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     shader.Disable();
-}
-
-void OutlineRenderer::Draw(const SOutlineList &outlines, Canvas::DrawOutlinesAs drawAs) {
-    Handle handle = Add(outlines, /*dynamic=*/true);
-    Draw(handle, drawAs);
-    Remove(handle);
 }
 
 void OutlineRenderer::SetModelview(double *matrix) {
@@ -960,6 +975,9 @@ void IndexedMeshRenderer::Init() {
     texShader.SetUniformTextureUnit("texture", 0);
     texaShader.SetUniformTextureUnit("texture", 0);
     selectedShader = &colShader;
+    
+    glGenBuffers(1, &handle.vertexBuffer);
+    glGenBuffers(1, &handle.indexBuffer);
 }
 
 void IndexedMeshRenderer::Clear() {
@@ -968,32 +986,39 @@ void IndexedMeshRenderer::Clear() {
     colShader.Clear();
     pointShader.Clear();
 }
-
-IndexedMeshRenderer::Handle IndexedMeshRenderer::Add(const SIndexedMesh &m, bool dynamic) {
-    Handle handle;
-    glGenBuffers(1, &handle.vertexBuffer);
-    glGenBuffers(1, &handle.indexBuffer);
-
-    GLenum mode = dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW;
+    
+void IndexedMeshRenderer::SetCounts(uint32_t vertices, uint32_t indices) {
+    verticesIndex = 0;
+    indicesIndex = 0;
+    
     glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, m.vertices.size() * sizeof(SIndexedMesh::Vertex),
-                 m.vertices.data(), mode);
+    glBufferData(GL_ARRAY_BUFFER, vertices * sizeof(SIndexedMesh::Vertex),
+                 nullptr, GL_DYNAMIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices * sizeof(uint32_t),
+                 nullptr, GL_DYNAMIC_DRAW);
+}
+
+void IndexedMeshRenderer::Add(const SIndexedMesh &m) {
+    glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
+    glBufferSubData(GL_ARRAY_BUFFER, verticesIndex, m.vertices.size() * sizeof(SIndexedMesh::Vertex),
+                 m.vertices.data());
+    verticesIndex += m.vertices.size();
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m.indices.size() * sizeof(uint32_t),
-                 m.indices.data(), mode);
-    handle.size = m.indices.size();
-    return handle;
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesIndex, m.indices.size() * sizeof(uint32_t),
+                 m.indices.data());
+    indicesIndex += m.indices.size();
 }
 
-void IndexedMeshRenderer::Remove(const IndexedMeshRenderer::Handle &handle) {
-    glDeleteBuffers(1, &handle.vertexBuffer);
-    glDeleteBuffers(1, &handle.indexBuffer);
-}
 
-void IndexedMeshRenderer::Draw(const IndexedMeshRenderer::Handle &handle) {
-    if(handle.size == 0) return;
-
+void IndexedMeshRenderer::Draw(const SIndexedMesh &mesh) {
+    if (mesh.indices.size() == 0) return;
+    
+    uint32_t baseVertex = verticesIndex;
+    uint32_t baseIndex = indicesIndex;
+    
     selectedShader->Enable();
 
     glBindBuffer(GL_ARRAY_BUFFER, handle.vertexBuffer);
@@ -1007,7 +1032,7 @@ void IndexedMeshRenderer::Draw(const IndexedMeshRenderer::Handle &handle) {
     }
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle.indexBuffer);
-    glDrawElements(GL_TRIANGLES, handle.size, GL_UNSIGNED_INT, NULL);
+    glDrawElementsBaseVertex(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, (GLvoid*)(baseIndex * sizeof(uint32_t)), baseVertex);
 
     glDisableVertexAttribArray(ATTRIB_POS);
     if(NeedsTexture()) glDisableVertexAttribArray(ATTRIB_TEX);
@@ -1016,12 +1041,6 @@ void IndexedMeshRenderer::Draw(const IndexedMeshRenderer::Handle &handle) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     selectedShader->Disable();
-}
-
-void IndexedMeshRenderer::Draw(const SIndexedMesh &mesh) {
-    Handle handle = Add(mesh, /*dynamic=*/true) ;
-    Draw(handle);
-    Remove(handle);
 }
 
 bool IndexedMeshRenderer::NeedsTexture() const {
